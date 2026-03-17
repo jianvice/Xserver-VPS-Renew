@@ -36,7 +36,7 @@ class Config:
     VPS_ID = os.getenv("XSERVER_VPS_ID", "40124478")
 
     # 原来的 USE_HEADLESS 在 Turnstile 下不再生效，这里保留但会强制改为 False
-    USE_HEADLESS = os.getenv("USE_HEADLESS", "true").lower() == "true"
+    USE_HEADLESS = os.getenv("USE_HEADLESS", "false").lower() == "true"
     WAIT_TIMEOUT = int(os.getenv("WAIT_TIMEOUT", "30000"))
 
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
