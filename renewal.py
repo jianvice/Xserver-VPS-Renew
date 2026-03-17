@@ -49,6 +49,7 @@ class Config:
         "CAPTCHA_API_URL",
         "https://captcha-120546510085.asia-northeast1.run.app"
     )
+    RUNNER_IP =""
 
     DETAIL_URL = f"https://secure.xserver.ne.jp/xapanel/xvps/server/detail?id={VPS_ID}"
     EXTEND_URL = f"https://secure.xserver.ne.jp/xapanel/xvps/server/freevps/extend/index?id_vps={VPS_ID}"
@@ -224,6 +225,20 @@ class XServerVPSRenewal:
             await self.page.screenshot(path=f"{name}.png", full_page=True)
         except Exception:
             pass
+    # ---------- 获取浏览器出口 IP ----------
+    async def _get_browser_exit_ip(self) -> Optional[str]:
+        try:
+            tmp = await self.context.new_page()
+            tmp.set_default_timeout(15000)
+            await tmp.goto("https://api.ipify.org", wait_until="domcontentloaded")
+            text = (await tmp.text_content("body")) or ""
+            ip = text.strip()
+            await tmp.close()
+            if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip):
+                return ip
+            return None
+        except Exception:
+            return None
 
     # ---------- 浏览器 ----------
     async def setup_browser(self) -> bool:
@@ -251,15 +266,10 @@ class XServerVPSRenewal:
             else:
                 logger.info("ℹ️ 已配置非无头模式(headless=False)")
 
-            if proxy_url:
-                launch_args.append(f"--proxy-server={proxy_url}")
-
-            launch_kwargs = {
-                "headless": False,   # ★ 关键：强制关闭 headless
-                "args": launch_args
-            }
-
-            self.browser = await self._pw.chromium.launch(**launch_kwargs)
+            self.browser = await self._pw.chromium.launch(
+                headless=False,
+                args=launch_args,
+            )
 
             context_options = {
                 "viewport": {"width": 1920, "height": 1080},
@@ -290,10 +300,23 @@ Object.defineProperty(navigator, 'permissions', {
             self.page.set_default_timeout(Config.WAIT_TIMEOUT)
 
             # 旧版 stealth 支持
-            if STEALTH_VERSION == 'old' and stealth_async is not None:
+            if STEALTH_VERSION == "old" and stealth_async is not None:
                 await stealth_async(self.page)
+                logger.info("✅ 已启用 playwright-stealth(old)")
             else:
-                logger.info("ℹ️ 使用新版 playwright_stealth 或未安装,跳过 stealth 处理")
+                logger.info("ℹ️ 未启用 stealth（未安装或非 old 版本）")
+
+            self.browser_exit_ip = await self._get_browser_exit_ip()
+            if self.browser_exit_ip:
+                logger.info(f"🌐 浏览器出口 IP: {self.browser_exit_ip}")
+            else:
+                logger.warning("⚠️ 未能获取浏览器出口 IP")
+
+            if Config.RUNNER_IP:
+                logger.info(f"🌍 GitHub Runner 出口 IP: {Config.RUNNER_IP}")
+
+            if self.browser_exit_ip and Config.RUNNER_IP and self.browser_exit_ip == Config.RUNNER_IP:
+                logger.warning(f"⚠️ browser_exit_ip == runner_ip == {self.browser_exit_ip}（当前策略允许直连，继续执行）")
 
             logger.info("✅ 浏览器初始化成功")
             return True
