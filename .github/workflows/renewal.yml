@@ -129,7 +129,7 @@ jobs:
           echo "📂 当前目录: $(pwd)"
           ls -lh renewal.py
           
-          python3 renewal.py
+          xvfb-run -a python3 renewal.py
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "✅ 续期任务执行完成"
